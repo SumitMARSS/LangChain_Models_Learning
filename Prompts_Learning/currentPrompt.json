@@ -1,0 +1,18 @@
+{
+    "name": null,
+    "input_variables": [
+        "length",
+        "level",
+        "paper",
+        "style"
+    ],
+    "optional_variables": [],
+    "output_parser": null,
+    "partial_variables": {},
+    "metadata": null,
+    "tags": null,
+    "template": "\n        You are an expert AI research assistant. \n        Explain the research paper \"{paper}\" in the following way:\n\n        - Audience level: {level}  \n        - Explanation style: {style}  \n        - Response length: {length}  \n\n        Be clear, structured, and stay strictly focused on the paper.\n    ",
+    "template_format": "f-string",
+    "validate_template": true,
+    "_type": "prompt"
+}
