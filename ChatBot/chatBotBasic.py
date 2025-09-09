@@ -29,6 +29,8 @@
 
 # Solution for memory part - keeping the chat history in a list and passing it to the model each time
 # Their is multiple ways to do this - history buffer summary, conversation buffer etc - check langchain docs for more details
+# version  2 with chat history - stateful
+
 
 
 from langchain_huggingface import ChatHuggingFace, HuggingFaceEndpoint
@@ -46,7 +48,7 @@ model = ChatHuggingFace(llm = llm)
 
 chat_history = []
 # in chat history send content - like - you - ... , bot - ... so that llm can understand the context
-
+# langchain has built in memory classes to handle this - check langchain docs for more details
 
 while True:
     user_input = input("You: ")
@@ -61,4 +63,6 @@ while True:
     
 
 print("\nChat History:", "\n".join(chat_history))
+
+
 
