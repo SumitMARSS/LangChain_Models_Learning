@@ -132,6 +132,39 @@ LangChain provides parsing utilities to help enforce structure on LLM outputs.
 
 ## 📅 Day 4 – Chains
 
+### 🪢 What are Chains in LangChain?
+
+**Chains** are just **multiple Runnables connected together** to form a **workflow**.
+
+- Each step is a `Runnable`.
+- You combine them with `|` or other composition utilities.
+- The output of one step becomes the input of the next.
+
+This makes it easy to build complete AI systems from small pieces.
+
+---
+
+### ⚙️ Types of Chains
+
+#### 1. Sequential Chains
+**Run steps one after another.**  
+The **output of step A goes to step B**, then to step C, and so on.
+
+**Use case:** Step-by-step workflows like:
+- Create a prompt → Send to LLM → Parse answer
+
+
+#### 2. Parallel Chains
+**Run multiple steps at the same time on the same input.**
+Then combine their outputs into one object.
+**Use case:** When you want to get multiple different responses or extract different fields in one go.
+
+
+#### 3. Conditional Chains
+**Choose which chain to run based on input or logic.***
+Use case: When you want to branch the flow depending on conditions.
+
+
 ### 🧠 What is Runnable in LangChain?
   In LangChain, **Runnable** is like a universal building block.  
   It’s a **common interface (a shared structure)** that **wraps any step in your AI pipeline** so they can all work together in the same way.
