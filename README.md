@@ -4,7 +4,7 @@
 
 This repository documents my hands-on journey learning LangChain—a framework for building powerful language model applications. On the first day, I explored why LangChain is needed, the concept of semantic search, its main components, and the benefits of adopting this library.
 
-## 📅 Day 1
+## 📅 Day 1 - Introduction of Langchain
 
 ### Why LangChain?
 
@@ -27,7 +27,7 @@ LangChain enables rapid development of applications using LLMs (Large Language M
 - **Indexes:** Data storage and retrieval systems designed for semantic search, chunking, and fast access.
 - **Agents:** Autonomous decision-making units that dynamically select tools or chains based on task requirements.
 
-## 📅 Day 2 
+## 📅 Day 2 - Prompt, Chatbots
 
 ### 1. Prompt Engineering
 
@@ -130,6 +130,59 @@ LangChain provides parsing utilities to help enforce structure on LLM outputs.
 - Use JsonOutputParser or regex with StrOutputParser to extract:
   {"name": "John", "age": 25}
 
+## 📅 Day 4 – Chains
+
+### 🧠 What is Runnable in LangChain?
+  In LangChain, **Runnable** is like a universal building block.  
+  It’s a **common interface (a shared structure)** that **wraps any step in your AI pipeline** so they can all work together in the same way.
+
+Think of Runnable as a **plug adapter**:
+
+- You can plug in a **prompt template**
+- Or an **LLM call**
+- Or a **tool**
+- Or a **custom Python function**
+
+Once something is a Runnable, you can:
+
+- **Run it** (`.invoke()`)
+- **Run many at once** (`.batch()`)
+- **Stream outputs as they come** (`.stream()`)
+
+This gives everything the **same controls, same methods, and same behavior.**
+
+---
+
+### ⚡ Why Runnable is Needed
+
+**Without Runnable:**
+
+- Every step (LLM, prompt, tool, parser) has **different ways of being called**
+- You need **extra code** to connect them together
+- Pipelines become **messy and hard to debug**
+
+**With Runnable:**
+
+- You get **one simple interface** for every component
+- You can **chain steps together easily** using the `|` operator (like building blocks)
+- You can **add logic, retry, error handling, logging** in one place
+- You can **switch or reuse components** without changing your whole pipeline
+
+> 📝 In short: it removes confusion and boilerplate, making code cleaner.
+
+---
+
+### 🧩 How Runnable Solves Developer Problems
+
+    | Developer Problem                  | How Runnable Helps                                    |
+    |-----------------------------------|---------------------------------------------------------|
+    | Hard to connect different steps    | Makes all steps follow same interface                   |
+    | Messy async / batch code           | Built-in `.batch()` and `.stream()` support              |
+    | Difficult to test or replace pieces| Any piece can be swapped easily if it’s a Runnable       |
+    | Complex pipelines                  | Can combine with `|` like Lego blocks                    |
+    | Hard to debug                       | Central place to add tracing, logging, retries           |
+
+---
 
 ## Getting Started
     git clone https://github.com/SumitMARSS/LangChain_Models_Learning.git
