@@ -38,9 +38,8 @@ LangChain enables rapid development of applications using LLMs (Large Language M
   - **List of Messages**: A sequence of system, user, and assistant messages for multi-turn context.
   - **Mixed Static + Dynamic Messages**: Combining static instructions with runtime user input dynamically.
 
-#### 📝 Note: :-
-    I had used Streamlit for some UI interaction while learning prompt engineering so that I can visualize things in an easy way.
-    To install it, run:  pip install streamlit
+#### 📝 Note: :- I had used Streamlit for some UI interaction while learning prompt engineering so that I can visualize things in an easy way.
+      To install it, run:  pip install streamlit
 
 ---
 
