@@ -217,6 +217,65 @@ This gives everything the **same controls, same methods, and same behavior.**
 
 ---
 
+
+## 📅 Day 5 –Understanding Runnables in LangChain
+
+## 📌 Background
+
+Earlier, the LangChain team built **separate components** for each step in an LLM pipeline, like:
+
+- Output parsers  
+- Text splitters  
+- Embedders  
+- Retrievers  
+- Chains for RAG and other use cases
+
+The idea was to make it easier for developers to use these building blocks to build powerful LLM applications.
+
+But this approach created **some problems**:
+
+### ⚠️ Problems with Old Approach
+1. **Heavy Codebase**  
+   - Too many different components and chains made the codebase large and complex.
+2. **Connection Issues Between Components**  
+   - It was hard to connect different components together smoothly.
+3. **Learning Overload for Developers**  
+   - Developers had to learn each type of chain separately (RAG chain, LLM chain, Retrieval chain, etc.), which became confusing and slowed down development.
+
+---
+
+### 💡 Why Runnables Were Introduced
+
+To solve these issues, the LangChain team introduced **Runnables**.
+
+**Runnables are a common interface that all components can follow.**
+
+Instead of having many different chain types with their own logic, **everything is now treated as a Runnable**.
+
+---
+
+## ⚙️ How Runnables Work
+
+At the base level, `Runnable` is an **abstract class** that defines common methods like:
+
+- `invoke(input)` – run the component on a single input
+- `batch(inputs)` – run the component on multiple inputs
+- `stream(input)` – stream output as it is generated
+
+**All components (LLMs, retrievers, output parsers, etc.) now extend this `Runnable` interface.**
+
+This means:
+
+- **Combining two Runnables creates another Runnable.**
+- **Runnables can be connected easily and consistently.**
+- **Communication between different components is smooth.**
+
+So now, **instead of learning many types of chains**, developers just need to learn **how to connect Runnables**.
+
+---
+
+
+
 ## Getting Started
     git clone https://github.com/SumitMARSS/LangChain_Models_Learning.git
 
