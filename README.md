@@ -274,6 +274,245 @@ So now, **instead of learning many types of chains**, developers just need to le
 
 ---
 
+## 📅 Day 6 – Runnable Types in LangChain
+
+## 📌 Recap
+
+On Day 5, we learned **why Runnables were introduced** — to give every LangChain component (LLMs, retrievers, parsers, etc.) a common interface (`invoke`, `batch`, `stream`) so they could be connected easily.
+
+Today, we go one level deeper and look at the **different types of Runnables** LangChain gives us, and how each one solves a specific problem while building pipelines.
+
+---
+
+## 🧩 Two Broad Categories of Runnables
+
+LangChain's Runnables can be split into **two categories**:
+
+### 1️⃣ Task-Specific Runnables
+These are the **core LangChain components** that have been converted into Runnables so they follow the common interface.
+
+Examples:
+- `ChatOpenAI` (LLM) → a Runnable
+- `PromptTemplate` → a Runnable
+- `Retriever` → a Runnable
+- `OutputParser` → a Runnable
+
+👉 In simple words: **these are the actual "workers"** — they do a specific job (call an LLM, format a prompt, fetch documents, parse output).
+
+### 2️⃣ Runnable Primitives
+These are **structural / control-flow tools**. They don't do the "work" themselves — instead, they help you **connect, arrange, and control** how the task-specific Runnables run together.
+
+Examples:
+- `RunnableSequence`
+- `RunnableParallel`
+- `RunnablePassthrough`
+- `RunnableLambda`
+- `RunnableBranch`
+
+👉 In simple words: **these are the "glue"** — they decide the *order*, *flow*, and *logic* of how your components run.
+
+**Analogy:** Think of task-specific Runnables as **workers on an assembly line** (one welds, one paints, one packs), and Runnable primitives as the **conveyor belt system** that decides who works after whom, who works in parallel, and who gets skipped.
+
+---
+
+## 1. RunnableSequence
+
+**RunnableSequence** is a runnable primitive that runs multiple runnables **one after another**, where the output of one step becomes the input of the next step.
+
+It's basically the `|` (pipe) operator you already use in LCEL — it chains steps in a straight line.
+
+```
+prompt  →  llm  →  output_parser
+```
+
+**Example (in words):**
+1. `prompt` formats the user's topic into a proper question.
+2. `llm` generates an answer.
+3. `output_parser` cleans up the answer into plain text.
+
+```python
+chain = prompt | llm | output_parser
+chain.invoke({"topic": "AI"})
+```
+
+Each `|` is secretly building a `RunnableSequence` behind the scenes.
+
+---
+
+## 2. RunnableParallel
+
+**RunnableParallel** is a runnable primitive that allows **multiple runnables to execute in parallel**.
+
+Each runnable receives the **same input** and processes it **independently**, producing a **dictionary of outputs**.
+
+**Example (in words):**
+Topic = "AI" is sent to two branches at once:
+- Branch 1: `LLM 1` → generates a **tweet**
+- Branch 2: `LLM 2` → generates a **LinkedIn post**
+
+```
+                topic = "AI"
+               /            \
+          LLM 1              LLM 2
+            ↓                  ↓
+          tweet              linkedin post
+```
+
+```python
+parallel_chain = RunnableParallel({
+    "tweet": tweet_chain,
+    "linkedin": linkedin_chain
+})
+
+parallel_chain.invoke({"topic": "AI"})
+# Output: {"tweet": "...", "linkedin": "..."}
+```
+
+**When to use it:** When you need the **same input** processed in **different ways at the same time** — like generating multiple content formats, or calling multiple models for comparison.
+
+---
+
+## 3. RunnablePassthrough
+
+**RunnablePassthrough** is a runnable primitive that simply **passes the input through unchanged** — it doesn't transform anything.
+
+**Why is this useful?** Sometimes inside a `RunnableParallel`, you want to keep the **original input** available alongside the output of another step (e.g., for a RAG pipeline where you need both the retrieved context *and* the original question).
+
+**Example (in words):**
+In a RAG chain, you want to send both:
+- the **original question** (unchanged) → passthrough
+- the **retrieved context** → retriever output
+
+to the final prompt.
+
+```python
+parallel_chain = RunnableParallel({
+    "context": retriever,
+    "question": RunnablePassthrough()
+})
+```
+
+Output:
+```python
+{
+  "context": "<retrieved docs>",
+  "question": "<the exact same question user asked>"
+}
+```
+
+👉 In simple words: **it's like a "do nothing, just forward it" step** — used to preserve data that would otherwise get lost.
+
+---
+
+## 4. RunnableLambda
+
+**RunnableLambda** is a runnable primitive that allows you to **apply custom Python functions** within an AI pipeline.
+
+It acts as **middleware** between different AI components, enabling **preprocessing, transformation, API calls, filtering, and post-processing** in a LangChain workflow.
+
+```
+input  →  RunnableLambda(clean)  →  llm  →  sentiment
+```
+
+**Example (in words):**
+Before sending text to the LLM, you want to **clean it** (remove extra spaces, lowercase it, strip HTML tags, etc.) using your own Python function — not a built-in LangChain component.
+
+```python
+def clean_text(text):
+    return text.strip().lower()
+
+clean_step = RunnableLambda(clean_text)
+
+chain = clean_step | llm | sentiment_parser
+```
+
+👉 In simple words: **it turns any normal Python function into a Runnable**, so you can plug your own custom logic anywhere in the chain — not just LangChain's built-in tools.
+
+---
+
+## 5. RunnableBranch — condition/if chains
+
+**RunnableBranch** is a control flow component in LangChain that allows you to **conditionally route** input data to different chains or runnables based on **custom logic**.
+
+It functions like an **if/elif/else block for chains** — where you define a set of condition functions, each associated with a runnable (e.g., LLM call, prompt chain, or tool). The **first matching condition is executed**. If no condition matches, a **default runnable** is used (if provided).
+
+```
+                     input
+              /        |          \
+        complain    refund      general query
+           ↓           ↓              ↓
+        customer   database         chatbot
+```
+
+**Example (in words):**
+A customer support pipeline routes messages based on intent:
+- If message = **complaint** → send to "customer support" chain
+- If message = **refund request** → send to "database lookup" chain
+- Else (general query) → send to a **default chatbot** chain
+
+```python
+branch_chain = RunnableBranch(
+    (lambda x: "complaint" in x["input"], complaint_chain),
+    (lambda x: "refund" in x["input"], refund_chain),
+    general_chatbot_chain  # default
+)
+```
+
+👉 In simple words: **it's decision-making inside your pipeline** — different inputs get sent down different paths automatically.
+
+---
+
+## 6. LCEL (LangChain Expression Language)
+
+**LCEL** is the **syntax/language** that lets you build all the above Runnables using simple, readable operators instead of verbose class-based code.
+
+The most common operator is the **pipe `|`**, which chains Runnables together (this is what builds a `RunnableSequence` under the hood).
+
+**Before LCEL (old, verbose way):**
+```python
+chain = LLMChain(llm=llm, prompt=prompt)
+result = chain.run(topic="AI")
+```
+
+**With LCEL (new, clean way):**
+```python
+chain = prompt | llm | output_parser
+result = chain.invoke({"topic": "AI"})
+```
+
+**Why LCEL matters:**
+- ✅ Cleaner, more readable pipelines
+- ✅ Automatic support for `invoke`, `batch`, `stream` on the whole chain
+- ✅ Easy to mix Sequence, Parallel, Passthrough, Lambda, and Branch together in one expression
+
+**Example combining everything:**
+```python
+full_chain = (
+    RunnableParallel({
+        "context": retriever,
+        "question": RunnablePassthrough()
+    })
+    | RunnableLambda(clean_text)
+    | prompt
+    | llm
+    | output_parser
+)
+```
+
+👉 In simple words: **LCEL is the "grammar" that lets you write pipelines like sentences**, combining primitives (Sequence, Parallel, Passthrough, Lambda, Branch) with task-specific Runnables (prompt, llm, parser) using simple operators.
+
+---
+
+## 🔑 Quick Recap Table
+
+| Runnable | Purpose | Analogy |
+|---|---|---|
+| `RunnableSequence` | Run steps one after another | Assembly line |
+| `RunnableParallel` | Run steps at the same time, same input | Multiple workers, same order |
+| `RunnablePassthrough` | Forward input unchanged | A pass-through wire |
+| `RunnableLambda` | Plug in custom Python function | Custom tool on the belt |
+| `RunnableBranch` | Route input based on condition | if/elif/else for chains |
+| `LCEL` | Syntax to combine all of the above | Grammar of the pipeline |
 
 
 ## Getting Started
