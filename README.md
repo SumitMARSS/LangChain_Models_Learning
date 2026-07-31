@@ -514,7 +514,323 @@ full_chain = (
 | `RunnableBranch` | Route input based on condition | if/elif/else for chains |
 | `LCEL` | Syntax to combine all of the above | Grammar of the pipeline |
 
+## 📅 Day 7 – RAG & Document Loaders in LangChain
 
+## 📌 Recap
+
+On Day 6, we learned about **Runnable Primitives** (`RunnableSequence`, `RunnableParallel`, `RunnablePassthrough`, `RunnableLambda`, `RunnableBranch`) and **LCEL** — the tools that help us connect components together.
+
+Today we shift focus to a very important real-world use case: **RAG (Retrieval-Augmented Generation)**, and the first building block of any RAG pipeline — **Document Loaders**.
+
+---
+
+## 1. What is RAG?
+
+**RAG (Retrieval-Augmented Generation)** is a technique that combines **information retrieval** with **language generation** — where a model retrieves relevant documents from a knowledge base and then uses them as context to generate accurate and grounded responses.
+
+### 🤔 Why do we even need RAG?
+
+A normal chatbot (like plain ChatGPT) only knows what it learned during training. It struggles with two things:
+
+```
+Chatbots  →  ChatGPT
+   ├──► Current affairs   (things that happened after training)
+   └──► Personal data     (your own documents, company data, etc.)
+```
+
+RAG solves this by connecting the LLM to an **external knowledge base** at query time.
+
+```
+        ┌────────────┐
+   ┌───►│    LLM     │─────────┐
+   │    └────────────┘         ▼
+   │         ▲          ┌───────────────┐
+   │         │          │External       │
+   │         │          │Knowledge Base │
+   │         └──────────┤               │
+   │                    └───────────────┘
+┌──────┐
+│ User │
+└──────┘
+```
+
+The user asks a question → LLM checks the **external knowledge base** → relevant info is pulled back → LLM uses it to generate a grounded answer.
+
+### ✅ Benefits of Using RAG
+
+1. **Use of up-to-date information** – the knowledge base can be refreshed anytime, without retraining the model.
+2. **Better privacy** – your private/personal documents never need to be sent to train a model; they just sit in your own knowledge base.
+3. **No limit on document size** – you're not constrained by what fits in the model's training data; you can plug in as many documents as you want.
+
+### 🏗️ What does a RAG-based application need?
+
+A RAG pipeline is built from several components:
+
+```
+                    RAG
+       ┌─────────────┼─────────────┐
+       ▼             ▼             ▼             ▼
+Document Loaders  Text Splitters  Vector DBs   Retrievers
+```
+
+- **Document Loaders** → bring raw data (PDFs, text, CSVs, web pages) into LangChain
+- **Text Splitters** → break large documents into smaller chunks
+- **Vector Databases** → store chunk embeddings for similarity search
+- **Retrievers** → fetch the most relevant chunks for a given query
+
+Today, we focus on the first piece: **Document Loaders**.
+
+---
+
+## 2. What is a Document Loader & Why Do We Need It?
+
+**Document loaders** are components in LangChain used to **load data from various sources** into a standardized format (usually as `Document` objects), which can then be used for **chunking, embedding, retrieval, and generation**.
+
+```
+pdf  ─┐
+txt  ─┤
+DB   ─┼──►  Common format  ──►  Document
+S3   ─┘
+```
+
+Every `Document` object looks like this:
+
+```python
+Document(
+    page_content="The actual text content",
+    metadata={"source": "filename.pdf", ...}
+)
+```
+
+### 🤔 Why do we even need this?
+
+Data lives in **many different formats** — PDFs, plain text, databases, cloud storage, websites, CSVs. An LLM pipeline can't work directly with a raw PDF file or a raw database row.
+
+Document Loaders act as a **universal adapter** — no matter where your data comes from, it gets converted into the same standard `Document` shape, so every downstream step (splitting, embedding, retrieval) works the same way regardless of the original source.
+
+---
+
+## 3. TextLoader
+
+**TextLoader** is a simple and commonly used document loader in LangChain that reads plain text (`.txt`) files and converts them into LangChain `Document` objects.
+
+```
+.txt  ──────►  document obj
+```
+
+### Use Case
+- Ideal for loading chat logs, scraped text, transcripts, code snippets, or any plain text data into a LangChain pipeline.
+
+### ⚠️ Limitation
+- Works **only** with `.txt` files.
+
+```python
+from langchain_community.document_loaders import TextLoader
+
+loader = TextLoader("notes.txt")
+docs = loader.load()
+```
+
+---
+
+## 4. PyPDFLoader (and other PDF loader options)
+
+**PyPDFLoader** is a document loader in LangChain used to load content from PDF files and convert **each page** into a separate `Document` object.
+
+```python
+[
+    Document(page_content="Text from page 1", metadata={"page": 0, "source": "file.pdf"}),
+    Document(page_content="Text from page 2", metadata={"page": 1, "source": "file.pdf"}),
+    ...
+]
+```
+
+### ⚠️ Limitation
+- It uses the **PyPDF** library under the hood — not great with **scanned PDFs** or **complex layouts**.
+
+### 📚 Many More Options Exist
+
+Since PDFs come in many flavors (clean text, tables, scanned images, complex layouts), LangChain gives you **multiple PDF loaders** to pick from:
+
+| Use Case | Recommended Loader |
+|---|---|
+| Simple, clean PDFs | `PyPDFLoader` |
+| PDFs with tables/columns | `PDFPlumberLoader` |
+| Scanned/image PDFs | `UnstructuredPDFLoader` or `AmazonTextractPDFLoader` |
+| Need layout and image data | `PyMuPDFLoader` |
+
+👉 In simple words: **there's no "one loader fits all" for PDFs** — pick the loader based on how messy or clean your PDF is.
+
+```python
+from langchain_community.document_loaders import PyPDFLoader
+
+loader = PyPDFLoader("report.pdf")
+docs = loader.load()
+```
+
+---
+
+## 5. DirectoryLoader
+
+**DirectoryLoader** is a document loader that lets you **load multiple documents from a directory (folder) of files** — instead of loading them one by one.
+
+```
+folder/
+ ├── ⬜ ⬜ ⬜
+ └── ⬜ ⬜ ⬜   ──►  langchain (all as Documents)
+```
+
+It uses **glob patterns** to control exactly what gets picked up:
+
+| Glob Pattern | What It Loads |
+|---|---|
+| `"**/*.txt"` | All `.txt` files in all subfolders |
+| `"*.pdf"` | All `.pdf` files in the root directory |
+| `"data/*.csv"` | All `.csv` files in the `data/` folder |
+| `"**/*"` | All files (any type, all folders) |
+
+`**` = recursive search through subfolders.
+
+```python
+from langchain_community.document_loaders import DirectoryLoader
+
+loader = DirectoryLoader("my_docs/", glob="**/*.pdf")
+docs = loader.load()
+```
+
+👉 In simple words: **instead of writing a loader call for every single file, point DirectoryLoader at a folder and a pattern, and it grabs everything matching that pattern for you.**
+
+---
+
+## 6. Load vs Lazy Load
+
+### 🤔 The Problem
+
+Suppose you have **4,000 or even more documents/PDFs**. If you try to load **all of them into memory at once**, that's a very heavy task — you can easily **run out of memory**, especially with large/heavy PDFs.
+
+This is exactly where **`lazy_load()`** becomes useful.
+
+### ✅ `load()` — Eager Loading
+
+- Loads **everything at once**.
+- Returns: a **list** of `Document` objects.
+- Loads all documents **immediately** into memory.
+- Best when:
+  - The number of documents is small.
+  - You want everything loaded upfront.
+
+### 🔄 `lazy_load()` — Lazy Loading
+
+- Loads **on demand**.
+- Returns: a **generator** of `Document` objects.
+- Documents are **not all loaded at once** — they're fetched **one at a time**, as needed.
+- Best when:
+  - You're dealing with **large documents or lots of files**.
+  - You want to **stream** processing (e.g., chunking, embedding) without using lots of memory.
+
+```
+all pdfs  ──►  generator of docs  ──►  use one at a time (as per demand)
+```
+
+```python
+# Eager
+docs = loader.load()          # all 4000 docs in memory at once ❌ (risky)
+
+# Lazy
+for doc in loader.lazy_load():   # one doc at a time ✅ (memory-friendly)
+    process(doc)
+```
+
+👉 In simple words: `load()` is like **downloading an entire library at once**, while `lazy_load()` is like **borrowing one book at a time as you need it**.
+
+---
+
+## 7. WebBaseLoader
+
+**WebBaseLoader** is a document loader in LangChain used to **load and extract text content from web pages (URLs)**.
+
+It uses **BeautifulSoup** under the hood to parse HTML and extract visible text.
+
+### ✅ When to Use
+- For blogs, news articles, or public websites where the content is primarily **text-based and static**.
+
+### ⚠️ Limitations
+- Doesn't handle **JavaScript-heavy pages** well (use `SeleniumURLLoader` for that).
+- Loads only **static content** (what's in the raw HTML, not what loads *after* the page renders).
+
+```python
+from langchain_community.document_loaders import WebBaseLoader
+
+loader = WebBaseLoader("https://example.com/blog-post")
+docs = loader.load()
+```
+
+👉 In simple words: **great for simple, static pages**; if a site depends heavily on JavaScript to render its content, this loader will miss it.
+
+---
+
+## 8. CSVLoader
+
+**CSVLoader** is a document loader in LangChain used to load `.csv` files — where **each row of the CSV becomes one `Document` object**.
+
+```python
+from langchain_community.document_loaders import CSVLoader
+
+loader = CSVLoader("customers.csv")
+docs = loader.load()
+```
+
+Each `Document` will typically look like:
+
+```python
+Document(
+    page_content="name: John\nemail: john@example.com\ncity: Mumbai",
+    metadata={"source": "customers.csv", "row": 0}
+)
+```
+
+👉 In simple words: **think row-by-row** — one CSV row = one Document, so a 1,000-row CSV becomes 1,000 Documents.
+
+---
+
+## 9. Custom Document Loaders
+
+Sometimes your data source doesn't match **any built-in loader** — maybe it's a proprietary API, a niche file format, or an internal database with a unique structure.
+
+For these cases, **LangChain provides the facility to create your own Custom Loader**.
+
+You do this by subclassing the base `Document Loader` interface and implementing your own `load()` (and optionally `lazy_load()`) logic:
+
+```python
+from langchain_core.document_loaders import BaseLoader
+from langchain_core.documents import Document
+
+class MyCustomLoader(BaseLoader):
+    def __init__(self, source):
+        self.source = source
+
+    def load(self):
+        # your own custom logic to fetch/parse data
+        raw_data = fetch_from_my_source(self.source)
+        return [Document(page_content=raw_data, metadata={"source": self.source})]
+```
+
+👉 In simple words: **if none of the built-in loaders fit your requirement, you're not stuck** — LangChain lets you build your own loader that still plugs into the same pipeline as every other loader.
+
+---
+
+## 🔑 Quick Recap Table
+
+| Loader | Purpose | Key Limitation |
+|---|---|---|
+| `TextLoader` | Load `.txt` files | Only works with `.txt` |
+| `PyPDFLoader` | Load clean PDFs, page by page | Struggles with scanned/complex PDFs |
+| `DirectoryLoader` | Load multiple files from a folder using glob patterns | Depends on correct glob pattern |
+| `load()` | Eager loading — all at once | Memory-heavy for large datasets |
+| `lazy_load()` | Lazy loading — one at a time via generator | Slightly more setup (iteration) |
+| `WebBaseLoader` | Load static web pages | Fails on JS-heavy pages |
+| `CSVLoader` | Load CSV, row → Document | Structure depends on CSV columns |
+| Custom Loader | Handle any unsupported source | You write the logic yourself |
 ## Getting Started
     git clone https://github.com/SumitMARSS/LangChain_Models_Learning.git
 
