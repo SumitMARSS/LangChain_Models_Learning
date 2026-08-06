@@ -1,0 +1,45 @@
+# LangChain Core
+langchain
+langchain-core
+langchain-community
+
+# OpenAI
+langchain-openai
+openai
+
+# Anthropic
+langchain-anthropic
+
+# Google Gemini
+langchain-google-genai
+google-generativeai
+
+# Hugging Face
+langchain-huggingface
+transformers
+huggingface-hub
+
+# Vector Store
+faiss-cpu
+
+# Embeddings / Tokenization
+tiktoken
+
+# YouTube Transcript
+youtube-transcript-api
+
+# Environment Variables
+python-dotenv
+
+# Machine Learning
+numpy
+scikit-learn
+
+# Optional Document Loaders
+pypdf
+beautifulsoup4
+lxml
+unstructured
+
+# HTTP
+requests
